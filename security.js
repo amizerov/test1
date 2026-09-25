@@ -38,10 +38,10 @@
         const emulatesIPhone = reportsIPhoneSafari && hasChromiumRuntime;
 
         const reportsDesktopPlatform = /Windows NT|Macintosh|X11|Linux x86_64/.test(userAgent);
-        const emulatesMobileInput = navigator.maxTouchPoints === 1 &&
-            window.matchMedia('(pointer: coarse)').matches &&
-            window.matchMedia('(hover: none)').matches;
-        const emulatesResponsiveMobile = hasChromiumRuntime && reportsDesktopPlatform && emulatesMobileInput;
+        const usesCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+        const hasNoHover = window.matchMedia('(hover: none)').matches;
+        const emulatesMobileInput = navigator.maxTouchPoints > 0 && (usesCoarsePointer || hasNoHover);
+        const emulatesResponsiveMobile = reportsDesktopPlatform && emulatesMobileInput;
 
         return emulatesIPhone || emulatesResponsiveMobile;
     }
