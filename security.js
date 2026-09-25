@@ -27,12 +27,26 @@
         return horizontalGap > HORIZONTAL_GAP || verticalGap > VERTICAL_GAP;
     }
 
+    // Device Mode replaces the window and screen dimensions, so the usual gap
+    // disappears. An emulated iPhone reports Mobile Safari's user agent while
+    // still exposing Chromium's window.chrome object. Real Mobile Safari does
+    // not expose that object.
+    function hasIPhoneDeviceMode() {
+        const userAgent = navigator.userAgent;
+        const reportsIPhoneSafari = /iPhone|iPad|iPod/.test(userAgent) &&
+            !/CriOS|EdgiOS|FxiOS|OPiOS/.test(userAgent);
+        const hasChromiumRuntime = typeof window.chrome === 'object' && window.chrome !== null;
+        const hasMobileViewport = Math.min(window.innerWidth, window.screen.width) <= 1024;
+
+        return reportsIPhoneSafari && hasChromiumRuntime && hasMobileViewport;
+    }
+
     function checkDevTools() {
         if (redirectStarted) {
             return;
         }
 
-        if (hasOpenDevTools()) {
+        if (hasOpenDevTools() || hasIPhoneDeviceMode()) {
             redirectToMain();
         }
     }
