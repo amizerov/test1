@@ -5,7 +5,8 @@
     const HORIZONTAL_GAP = 50;
     const VERTICAL_GAP = 200;
     const CHECK_INTERVAL = 250;
-    const WORKER_PAUSE_LIMIT = 150;
+    const WORKER_ATTACH_DELAY = 500;
+    const WORKER_PAUSE_LIMIT = 200;
     let redirectStarted = false;
     let workerProbeRunning = false;
 
@@ -40,10 +41,12 @@
 
         workerProbeRunning = true;
         const source = `
-            self.postMessage('ready');
-            debugger;
-            self.postMessage('continued');
-            self.close();
+            self.setTimeout(() => {
+                self.postMessage('probing');
+                debugger;
+                self.postMessage('continued');
+                self.close();
+            }, ${WORKER_ATTACH_DELAY});
         `;
         const objectUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
         let worker;
@@ -64,7 +67,7 @@
         }
 
         worker.addEventListener('message', (event) => {
-            if (event.data === 'ready') {
+            if (event.data === 'probing') {
                 watchdog = window.setTimeout(() => {
                     redirectToMain();
                     cleanup();
