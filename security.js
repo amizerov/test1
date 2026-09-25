@@ -5,7 +5,9 @@
     const HORIZONTAL_GAP = 50;
     const VERTICAL_GAP = 200;
     const CHECK_INTERVAL = 250;
+    const WORKER_PAUSE_LIMIT = 150;
     let redirectStarted = false;
+    let workerProbeRunning = false;
 
     function redirectToMain() {
         if (redirectStarted || window.location.href === REDIRECT_URL) {
@@ -27,23 +29,54 @@
         return horizontalGap > HORIZONTAL_GAP || verticalGap > VERTICAL_GAP;
     }
 
-    // Device Mode replaces the window and screen dimensions, so the usual gap
-    // disappears. Detect both an iPhone preset and the "Responsive" preset.
-    function hasDeviceMode() {
-        const userAgent = navigator.userAgent;
-        const hasChromiumRuntime = typeof window.chrome === 'object' && window.chrome !== null;
+    // A debugger statement on the main thread blocks the redirect itself.
+    // Run it in a dedicated worker instead: when DevTools pauses the worker,
+    // the page's main thread remains free to perform the redirect.
+    function probeDevToolsInWorker() {
+        if (workerProbeRunning || redirectStarted ||
+            typeof Worker !== 'function' || typeof Blob !== 'function') {
+            return;
+        }
 
-        const reportsIPhoneSafari = /iPhone|iPad|iPod/.test(userAgent) &&
-            !/CriOS|EdgiOS|FxiOS|OPiOS/.test(userAgent);
-        const emulatesIPhone = reportsIPhoneSafari && hasChromiumRuntime;
+        workerProbeRunning = true;
+        const source = `
+            self.postMessage('ready');
+            debugger;
+            self.postMessage('continued');
+            self.close();
+        `;
+        const objectUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+        let worker;
+        let watchdog;
 
-        const reportsDesktopPlatform = /Windows NT|Macintosh|X11|Linux x86_64/.test(userAgent);
-        const usesCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
-        const hasNoHover = window.matchMedia('(hover: none)').matches;
-        const emulatesMobileInput = navigator.maxTouchPoints > 0 && (usesCoarsePointer || hasNoHover);
-        const emulatesResponsiveMobile = reportsDesktopPlatform && emulatesMobileInput;
+        function cleanup() {
+            window.clearTimeout(watchdog);
+            if (worker) worker.terminate();
+            URL.revokeObjectURL(objectUrl);
+            workerProbeRunning = false;
+        }
 
-        return emulatesIPhone || emulatesResponsiveMobile;
+        try {
+            worker = new Worker(objectUrl);
+        } catch {
+            cleanup();
+            return;
+        }
+
+        worker.addEventListener('message', (event) => {
+            if (event.data === 'ready') {
+                watchdog = window.setTimeout(() => {
+                    redirectToMain();
+                    cleanup();
+                }, WORKER_PAUSE_LIMIT);
+                return;
+            }
+
+            if (event.data === 'continued') {
+                cleanup();
+            }
+        });
+        worker.addEventListener('error', cleanup, { once: true });
     }
 
     function checkDevTools() {
@@ -51,9 +84,12 @@
             return;
         }
 
-        if (hasOpenDevTools() || hasDeviceMode()) {
+        if (hasOpenDevTools()) {
             redirectToMain();
+            return;
         }
+
+        probeDevToolsInWorker();
     }
 
     // With this script first in <head>, the check runs before page content parses.
