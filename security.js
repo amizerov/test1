@@ -1,9 +1,10 @@
 (() => {
     'use strict';
 
-    const REDIRECT_URL = new URL('main.html', document.baseURI).href;
-    const DEVTOOLS_GAP = 160;
-    const CHECK_INTERVAL = 500;
+    const REDIRECT_URL = new URL('./main.html', window.location.href).href;
+    const HORIZONTAL_GAP = 50;
+    const VERTICAL_GAP = 200;
+    const CHECK_INTERVAL = 250;
     let redirectStarted = false;
 
     function redirectToMain() {
@@ -15,21 +16,15 @@
         window.location.replace(REDIRECT_URL);
     }
 
-    // Docked DevTools reduces the viewport while the outer window keeps its size.
-    function hasDockedDevTools() {
+    // Docked DevTools reduces the page viewport but not the browser window.
+    // Separate limits are used because the browser toolbar is included in the
+    // normal vertical difference. A small horizontal limit also covers mobile
+    // device emulation in Chrome DevTools.
+    function hasOpenDevTools() {
         const horizontalGap = Math.max(0, window.outerWidth - window.innerWidth);
         const verticalGap = Math.max(0, window.outerHeight - window.innerHeight);
 
-        return horizontalGap > DEVTOOLS_GAP || verticalGap > DEVTOOLS_GAP;
-    }
-
-    // For undocked DevTools, execution pauses here while a debugger is attached.
-    function wasDebuggerPaused() {
-        const startedAt = performance.now();
-
-        debugger; // eslint-disable-line no-debugger
-
-        return performance.now() - startedAt > 100;
+        return horizontalGap > HORIZONTAL_GAP || verticalGap > VERTICAL_GAP;
     }
 
     function checkDevTools() {
@@ -37,7 +32,7 @@
             return;
         }
 
-        if (hasDockedDevTools() || wasDebuggerPaused()) {
+        if (hasOpenDevTools()) {
             redirectToMain();
         }
     }
