@@ -28,17 +28,23 @@
     }
 
     // Device Mode replaces the window and screen dimensions, so the usual gap
-    // disappears. An emulated iPhone reports Mobile Safari's user agent while
-    // still exposing Chromium's window.chrome object. Real Mobile Safari does
-    // not expose that object.
-    function hasIPhoneDeviceMode() {
+    // disappears. Detect both an iPhone preset and the "Responsive" preset.
+    function hasDeviceMode() {
         const userAgent = navigator.userAgent;
-        const reportsIPhoneSafari = /iPhone|iPad|iPod/.test(userAgent) &&
-            !/CriOS|EdgiOS|FxiOS|OPiOS/.test(userAgent);
         const hasChromiumRuntime = typeof window.chrome === 'object' && window.chrome !== null;
         const hasMobileViewport = Math.min(window.innerWidth, window.screen.width) <= 1024;
 
-        return reportsIPhoneSafari && hasChromiumRuntime && hasMobileViewport;
+        const reportsIPhoneSafari = /iPhone|iPad|iPod/.test(userAgent) &&
+            !/CriOS|EdgiOS|FxiOS|OPiOS/.test(userAgent);
+        const emulatesIPhone = reportsIPhoneSafari && hasChromiumRuntime && hasMobileViewport;
+
+        const reportsDesktopPlatform = /Windows NT|Macintosh|X11|Linux x86_64/.test(userAgent);
+        const emulatesScreenWidth = Math.abs(window.screen.width - window.innerWidth) <= 1;
+        const emulatesScreenHeight = Math.abs(window.screen.height - window.innerHeight) <= 1;
+        const emulatesResponsiveViewport = hasChromiumRuntime && reportsDesktopPlatform &&
+            hasMobileViewport && emulatesScreenWidth && emulatesScreenHeight;
+
+        return emulatesIPhone || emulatesResponsiveViewport;
     }
 
     function checkDevTools() {
@@ -46,7 +52,7 @@
             return;
         }
 
-        if (hasOpenDevTools() || hasIPhoneDeviceMode()) {
+        if (hasOpenDevTools() || hasDeviceMode()) {
             redirectToMain();
         }
     }
