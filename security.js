@@ -32,19 +32,18 @@
     function hasDeviceMode() {
         const userAgent = navigator.userAgent;
         const hasChromiumRuntime = typeof window.chrome === 'object' && window.chrome !== null;
-        const hasMobileViewport = Math.min(window.innerWidth, window.screen.width) <= 1024;
 
         const reportsIPhoneSafari = /iPhone|iPad|iPod/.test(userAgent) &&
             !/CriOS|EdgiOS|FxiOS|OPiOS/.test(userAgent);
-        const emulatesIPhone = reportsIPhoneSafari && hasChromiumRuntime && hasMobileViewport;
+        const emulatesIPhone = reportsIPhoneSafari && hasChromiumRuntime;
 
         const reportsDesktopPlatform = /Windows NT|Macintosh|X11|Linux x86_64/.test(userAgent);
-        const emulatesScreenWidth = Math.abs(window.screen.width - window.innerWidth) <= 1;
-        const emulatesScreenHeight = Math.abs(window.screen.height - window.innerHeight) <= 1;
-        const emulatesResponsiveViewport = hasChromiumRuntime && reportsDesktopPlatform &&
-            hasMobileViewport && emulatesScreenWidth && emulatesScreenHeight;
+        const emulatesMobileInput = navigator.maxTouchPoints === 1 &&
+            window.matchMedia('(pointer: coarse)').matches &&
+            window.matchMedia('(hover: none)').matches;
+        const emulatesResponsiveMobile = hasChromiumRuntime && reportsDesktopPlatform && emulatesMobileInput;
 
-        return emulatesIPhone || emulatesResponsiveViewport;
+        return emulatesIPhone || emulatesResponsiveMobile;
     }
 
     function checkDevTools() {
